@@ -1,0 +1,7 @@
+other:
+  characters_per_line: 85
+paths:
+  mcrun_path: /usr/local/mcstas/3.2/bin
+  mcstas_path: /usr/local/mcstas/3.2
+  mcxtrace_path: /usr/share/mcxtrace/1.5
+  mxrun_path: /usr/bin/
