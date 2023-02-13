@@ -455,6 +455,19 @@ class McCode_instr(BaseCalculator):
         """
         pass
 
+    def parameter(self, *typename, name=None, **kwargs):
+        if name is None:
+            import inspect
+            stack = inspect.stack()
+            calling_string = ' '.join(stack[1][4])
+            if '=' not in calling_string:
+                print(calling_string)
+                raise NameError(f"Specify a name for the new parameter by keyword "
+                                "or assigning the output of this function,\n\t e.g., "
+                                "`parameter_name = instrument.parameter(...)")
+            name = calling_string.split('=')[0].strip()
+        return self.add_parameter(*typename, name, **kwargs)
+
     def add_parameter(self, *args, **kwargs):
         """
         Method for adding input parameter to instrument
@@ -676,6 +689,18 @@ class McCode_instr(BaseCalculator):
 
         print(string)
 
+    def declare(self, typename, name=None, **kwargs):
+        if name is None:
+            import inspect
+            stack = inspect.stack()
+            calling_string = ' '.join(stack[1][4])
+            if '=' not in calling_string:
+                raise NameError(f"Specify a name for the new declare variable by keyword "
+                                "or assigning the output of this function, e.g., "
+                                "`variable_name = instrument.declare(...)")
+            name = calling_string.split('=')[0].strip()
+        return self.add_declare_var(typename, name, **kwargs)
+
     def add_declare_var(self, *args, **kwargs):
         """
         Method for adding declared variable to instrument
@@ -700,14 +725,12 @@ class McCode_instr(BaseCalculator):
                 Comment displayed next to declaration of parameter
 
         """
-
+        DV = DeclareVariable
         # DeclareVariable class documented independently
-        declare_par = DeclareVariable(*args, **kwargs)
+        declare_par = DV(args[1], type=args[0], **kwargs) if len(args) > 1 else DV(*args, **kwargs)
 
-        names = [x.name for x in self.declare_list
-                 if isinstance(x, DeclareVariable)]
-        names += [x.name for x in self.user_var_list
-                  if isinstance(x, DeclareVariable)]
+        names = [x.name for x in self.declare_list if isinstance(x, DV)]
+        names += [x.name for x in self.user_var_list if isinstance(x, DV)]
         names += [x.name for x in self.parameters.parameters.values()]
 
         if declare_par.name in names:
@@ -733,6 +756,18 @@ class McCode_instr(BaseCalculator):
 
         self.declare_list.append(string)
 
+    def user_var(self, typename, name=None, **kwargs):
+        if name is None:
+            import inspect
+            stack = inspect.stack()
+            calling_string = ' '.join(stack[1][4])
+            if '=' not in calling_string:
+                raise NameError(f"Specify a name for the new declare variable by keyword "
+                                "or assigning the output of this function, e.g., "
+                                "`variable_name = instrument.user_var(...)")
+            name = calling_string.split('=')[0].strip()
+        return self.add_user_var(typename, name, **kwargs)
+
     def add_user_var(self, *args, **kwargs):
         """
         Method for adding user variable to instrument
@@ -757,14 +792,12 @@ class McCode_instr(BaseCalculator):
 
         if "value" in kwargs:
             raise ValueError("Value not allowed for UserVars.")
-
+        DV = DeclareVariable
         # DeclareVariable class documented independently
-        user_par = DeclareVariable(*args, **kwargs)
+        user_par = DV(args[1], type=args[0], **kwargs) if len(args) > 1 else DV(*args, **kwargs)
 
-        names = [x.name for x in self.declare_list
-                 if isinstance(x, DeclareVariable)]
-        names += [x.name for x in self.user_var_list
-                  if isinstance(x, DeclareVariable)]
+        names = [x.name for x in self.declare_list if isinstance(x, DV)]
+        names += [x.name for x in self.user_var_list if isinstance(x, DV)]
         names += [x.name for x in self.parameters.parameters.values()]
 
         if user_par.name in names:
@@ -969,6 +1002,18 @@ class McCode_instr(BaseCalculator):
         return self.component_class_lib[component_name](name, component_name,
                                                         **kwargs)
 
+    def component(self, component_name, name=None, **kwargs):
+        if name is None:
+            import inspect
+            stack = inspect.stack()
+            calling_string = ' '.join(stack[1][4])
+            if '=' not in calling_string:
+                raise NameError(f"Specify a name for the new {component_name} instance by keyword "
+                                "or assigning the output of this function, e.g., "
+                                "`instance_name = instrument.component(component_name, ...)")
+            name = calling_string.split('=')[0].strip()
+        return self.add_component(name, component_name, **kwargs)
+
     def add_component(self, name, component_name, before=None, after=None,
                       AT=None, AT_RELATIVE=None, ROTATED=None,
                       ROTATED_RELATIVE=None, RELATIVE=None, WHEN=None,
@@ -1053,6 +1098,18 @@ class McCode_instr(BaseCalculator):
 
         self._insert_component(new_component, before=before, after=after)
         return new_component
+
+    def copy_component_instance(self, component_instance, name=None, **kwargs):
+        if name is None:
+            import inspect
+            stack = inspect.stack()
+            calling_string = ' '.join(stack[1][4])
+            if '=' not in calling_string:
+                raise NameError(f"Specify a name for the copy of {component_instance} by keyword "
+                                "or assigning the output of this function, e.g., "
+                                "`copy_instance_name = instrument.copy_component_instance(component_instance, ...)")
+            name = calling_string.split('=')[0].strip()
+        return self.copy_component(name, component_instance, **kwargs)
 
     def copy_component(self, name, original_component, before=None, after=None,
                        AT=None, AT_RELATIVE=None, ROTATED=None,

@@ -202,7 +202,7 @@ class DeclareVariable:
     write_line(fo)
         Writes a line to text file fo declaring the parameter in c
     """
-    def __init__(self, type, name, **kwargs):
+    def __init__(self, name, type=None, **kwargs):
         """
         Initializing mcstas declare variable or user variable object
 
@@ -221,13 +221,12 @@ class DeclareVariable:
 
         Parameters
         ----------
-        type : str
-            Type of the parameter, double, int or string
-
         name : str
             Name of input parameter
 
         Keyword arguments
+            type : str
+                Type of the parameter, any valid C type, e.g., double, int or string
             array : int
                 length of array to be allocated, 0 if single value
 

@@ -24,6 +24,10 @@ def name_search(name, data_list):
     data_list : List of McStasData instances
         List of datasets to search
     """
+    if not isinstance(name, str) and hasattr(name, "name"):
+        # Allow dataset specification from, e.g., matching component object
+        name = name.name
+
     if type(data_list) is not list:
         raise RuntimeError(
             "name_search function needs list of McStasData as input.")
