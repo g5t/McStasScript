@@ -310,7 +310,8 @@ class TraceReader(SectionReader):
                 else:
                     line = ""
             elif line.strip().startswith("RELATIVE"):
-                line = line.strip().split(" ", 1)[1].strip()
+                line = line.strip()[8:].strip()
+                # line = line.strip().split(" ", 1)[1].strip()
                 if " " in line:
                     relative_name = line.split(" ", 1)[0].strip()
                 else:
@@ -407,9 +408,10 @@ class TraceReader(SectionReader):
             write_string.append(" = ")
             write_string.append(self.instr_name)
             if self.component_copy_target is None:
-                write_string.append(".add_component(")
-                write_string.append("\"" + self.current_component.name + "\"")
-                write_string.append(", ")
+                # write_string.append(".add_component(")
+                # write_string.append("\"" + self.current_component.name + "\"")
+                # write_string.append(", ")
+                write_string.append(".component(")
                 component_name = str(self.current_component.component_name)
                 write_string.append("\"" + component_name + "\"")
             else:
