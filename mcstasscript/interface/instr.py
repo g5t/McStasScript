@@ -444,6 +444,22 @@ class McCode_instr(BaseCalculator):
     def output_path(self, value: str) -> None:
         self.calculator_base_dir = value
 
+    @property
+    def executable_version(self):
+        from subprocess import check_output
+        from pathlib import Path
+        from os import access, X_OK
+        from packaging.version import parse
+        if 'executable_path' not in self._run_settings or 'executable' not in self._run_settings:
+            return '0.0.0'
+        torun = Path(self._run_settings['executable_path']).joinpath(self._run_settings['executable'])
+        if not torun.exists() or not access(torun, X_OK):
+            return '0.0.0'
+        version_info = check_output([torun, '--version']).decode('utf-8')
+        version_string = [x for x in version_info.split('\n') if len(x)][-1]
+        return parse(version_string)
+
+
     def init_parameters(self):
         """
         Create empty ParameterContainer for new instrument
@@ -666,6 +682,19 @@ class McCode_instr(BaseCalculator):
                   "In this case the remaining instrument would fail.")
             self.check_for_relative_errors(start_ref=end_ref, allow_absolute=False)
 
+    def parameter(self, *typename, name=None, **kwargs):
+        if name is None:
+            import inspect
+            stack = inspect.stack()
+            calling_string = ' '.join(stack[1][4])
+            if '=' not in calling_string:
+                print(calling_string)
+                raise NameError(f"Specify a name for the new parameter by keyword "
+                                "or assigning the output of this function,\n\t e.g., "
+                                "`parameter_name = instrument.parameter(...)")
+            name = calling_string.split('=')[0].strip()
+        return self.add_parameter(*typename, name, **kwargs)
+
     def add_parameter(self, *args, **kwargs):
         """
         Method for adding input parameter to instrument
@@ -887,6 +916,18 @@ class McCode_instr(BaseCalculator):
 
         print(string)
 
+    def declare(self, typename, name=None, **kwargs):
+        if name is None:
+            import inspect
+            stack = inspect.stack()
+            calling_string = ' '.join(stack[1][4])
+            if '=' not in calling_string:
+                raise NameError(f"Specify a name for the new declare variable by keyword "
+                                "or assigning the output of this function, e.g., "
+                                "`variable_name = instrument.declare(...)")
+            name = calling_string.split('=')[0].strip()
+        return self.add_declare_var(typename, name, **kwargs)
+
     def add_declare_var(self, *args, **kwargs):
         """
         Method for adding declared variable to instrument
@@ -911,14 +952,12 @@ class McCode_instr(BaseCalculator):
                 Comment displayed next to declaration of parameter
 
         """
-
+        DV = DeclareVariable
         # DeclareVariable class documented independently
-        declare_par = DeclareVariable(*args, **kwargs)
+        declare_par = DV(args[1], type=args[0], **kwargs) if len(args) > 1 else DV(*args, **kwargs)
 
-        names = [x.name for x in self.declare_list
-                 if isinstance(x, DeclareVariable)]
-        names += [x.name for x in self.user_var_list
-                  if isinstance(x, DeclareVariable)]
+        names = [x.name for x in self.declare_list if isinstance(x, DV)]
+        names += [x.name for x in self.user_var_list if isinstance(x, DV)]
         names += [x.name for x in self.parameters.parameters.values()]
 
         if declare_par.name in names:
@@ -944,6 +983,18 @@ class McCode_instr(BaseCalculator):
 
         self.declare_list.append(string)
 
+    def user_var(self, typename, name=None, **kwargs):
+        if name is None:
+            import inspect
+            stack = inspect.stack()
+            calling_string = ' '.join(stack[1][4])
+            if '=' not in calling_string:
+                raise NameError(f"Specify a name for the new declare variable by keyword "
+                                "or assigning the output of this function, e.g., "
+                                "`variable_name = instrument.user_var(...)")
+            name = calling_string.split('=')[0].strip()
+        return self.add_user_var(typename, name, **kwargs)
+
     def add_user_var(self, *args, **kwargs):
         """
         Method for adding user variable to instrument
@@ -968,14 +1019,12 @@ class McCode_instr(BaseCalculator):
 
         if "value" in kwargs:
             raise ValueError("Value not allowed for UserVars.")
-
+        DV = DeclareVariable
         # DeclareVariable class documented independently
-        user_par = DeclareVariable(*args, **kwargs)
+        user_par = DV(args[1], type=args[0], **kwargs) if len(args) > 1 else DV(*args, **kwargs)
 
-        names = [x.name for x in self.declare_list
-                 if isinstance(x, DeclareVariable)]
-        names += [x.name for x in self.user_var_list
-                  if isinstance(x, DeclareVariable)]
+        names = [x.name for x in self.declare_list if isinstance(x, DV)]
+        names += [x.name for x in self.user_var_list if isinstance(x, DV)]
         names += [x.name for x in self.parameters.parameters.values()]
 
         if user_par.name in names:
@@ -1180,6 +1229,18 @@ class McCode_instr(BaseCalculator):
         return self.component_class_lib[component_name](name, component_name,
                                                         **kwargs)
 
+    def component(self, component_name, name=None, **kwargs):
+        if name is None:
+            import inspect
+            stack = inspect.stack()
+            calling_string = ' '.join(stack[1][4])
+            if '=' not in calling_string:
+                raise NameError(f"Specify a name for the new {component_name} instance by keyword "
+                                "or assigning the output of this function, e.g., "
+                                "`instance_name = instrument.component(component_name, ...)")
+            name = calling_string.split('=')[0].strip()
+        return self.add_component(name, component_name, **kwargs)
+
     def add_component(self, name, component_name, before=None, after=None,
                       AT=None, AT_RELATIVE=None, ROTATED=None,
                       ROTATED_RELATIVE=None, RELATIVE=None, WHEN=None,
@@ -1264,6 +1325,18 @@ class McCode_instr(BaseCalculator):
 
         self._insert_component(new_component, before=before, after=after)
         return new_component
+
+    def copy_component_instance(self, component_instance, name=None, **kwargs):
+        if name is None:
+            import inspect
+            stack = inspect.stack()
+            calling_string = ' '.join(stack[1][4])
+            if '=' not in calling_string:
+                raise NameError(f"Specify a name for the copy of {component_instance} by keyword "
+                                "or assigning the output of this function, e.g., "
+                                "`copy_instance_name = instrument.copy_component_instance(component_instance, ...)")
+            name = calling_string.split('=')[0].strip()
+        return self.copy_component(name, component_instance, **kwargs)
 
     def copy_component(self, name, original_component, before=None, after=None,
                        AT=None, AT_RELATIVE=None, ROTATED=None,
@@ -2783,14 +2856,8 @@ class McStas_instr(McCode_instr):
             self.mccode_version = "Unknown"
 
     def _read_calibration(self):
-        this_dir = os.path.dirname(os.path.abspath(__file__))
-        configuration_file_name = os.path.join(this_dir, "..",
-                                               "configuration.yaml")
-        if not os.path.isfile(configuration_file_name):
-            raise NameError("Could not find configuration file!")
-        with open(configuration_file_name, 'r') as ymlfile:
-            config = yaml.safe_load(ymlfile)
-
+        from .. import Configurator
+        config = Configurator()._read_yaml()
         if type(config) is dict:
             self._run_settings["executable_path"] = config["paths"]["mcrun_path"]
             self._run_settings["package_path"] = config["paths"]["mcstas_path"]
@@ -3011,14 +3078,8 @@ class McXtrace_instr(McCode_instr):
             self.mccode_version = "Unknown"
 
     def _read_calibration(self):
-        this_dir = os.path.dirname(os.path.abspath(__file__))
-        configuration_file_name = os.path.join(this_dir, "..",
-                                               "configuration.yaml")
-        if not os.path.isfile(configuration_file_name):
-            raise NameError("Could not find configuration file!")
-        with open(configuration_file_name, 'r') as ymlfile:
-            config = yaml.safe_load(ymlfile)
-
+        from .. import Configurator
+        config = Configurator()._read_yaml()
         if type(config) is dict:
             self._run_settings["executable_path"] = config["paths"]["mxrun_path"]
             self._run_settings["package_path"] = config["paths"]["mcxtrace_path"]
