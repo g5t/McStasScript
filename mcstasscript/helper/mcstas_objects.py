@@ -160,7 +160,7 @@ def write_parameter(fo, parameter, stop_character):
         fo.write(parameter.name)
 
     if parameter.unit != 'dimensionless':
-        fo.write(f'("{parameter.unit}")')
+        fo.write(f'/"{parameter.unit}"')
 
     if parameter.value is not None:
         if isinstance(parameter.value, int):
@@ -386,6 +386,10 @@ class Component:
     JUMP : str, default ""
         String describing use of JUMP, need to contain all after "JUMP"
 
+    LITERAL: dict(str, tuple(str, str))
+        Extra unparsed literal string(s) to be inserted in the compiled instrument
+        for ingestion by other programs.
+
     SPLIT : int, default 0 (disabled)
         Integer setting SPLIT, splitting the neutron before this component
 
@@ -439,6 +443,9 @@ class Component:
     append_EXTEND(string)
         Append string to EXTEND string
 
+    append_LITERAL(name: str, type: str, lines: str)
+        Append the literal `lines` to the dictionary for inclusion in the instrument file
+
     set_c_code_before(string)
         Sets c code to be inserted before component
 
@@ -481,7 +488,7 @@ class Component:
     def __init__(self, instance_name, component_name, AT=None,
                  AT_RELATIVE=None, ROTATED=None, ROTATED_RELATIVE=None,
                  RELATIVE=None, WHEN=None, EXTEND=None, GROUP=None,
-                 JUMP=None, SPLIT=None, comment=None, c_code_before=None,
+                 JUMP=None, LITERAL=None, SPLIT=None, comment=None, c_code_before=None,
                  c_code_after=None):
         """
         Initializes McStas component with specified name and component
@@ -551,6 +558,7 @@ class Component:
         self.EXTEND = ""
         self.GROUP = ""
         self.JUMP = ""
+        self.LITERAL = dict()
         self.SPLIT = 0
         self.comment = ""
         self.c_code_before = ""
@@ -565,7 +573,7 @@ class Component:
         self.set_keyword_input(AT=AT, AT_RELATIVE=AT_RELATIVE, ROTATED=ROTATED,
                                ROTATED_RELATIVE=ROTATED_RELATIVE,
                                RELATIVE=RELATIVE, WHEN=WHEN, EXTEND=EXTEND,
-                               GROUP=GROUP, JUMP=JUMP, SPLIT=SPLIT,
+                               GROUP=GROUP, JUMP=JUMP, LITERAL=LITERAL, SPLIT=SPLIT,
                                comment=comment, c_code_before=c_code_before,
                                c_code_after=c_code_after)
 
@@ -580,7 +588,7 @@ class Component:
 
     def set_keyword_input(self, AT=None, AT_RELATIVE=None, ROTATED=None,
                           ROTATED_RELATIVE=None, RELATIVE=None, WHEN=None,
-                          EXTEND=None, GROUP=None, JUMP=None, SPLIT=None,
+                          EXTEND=None, GROUP=None, JUMP=None, LITERAL=None, SPLIT=None,
                           comment=None, c_code_before=None, c_code_after=None):
         # Allow addition of attributes in init
         self._unfreeze()
@@ -612,6 +620,12 @@ class Component:
 
         if JUMP is not None:
             self.set_JUMP(JUMP)
+
+        if LITERAL is not None:
+            if isinstance(LITERAL, dict):
+                self.LITERAL = LITERAL
+            else:
+                raise RuntimeWarning("Ignoring provided LITERAL since it is not a dictionary")
 
         if SPLIT is not None:
             self.set_SPLIT(SPLIT)
@@ -916,6 +930,10 @@ class Component:
                                + "given " + str(type(string)))
         self.EXTEND = self.EXTEND + string + "\n"
 
+    def append_LITERAL(self, name: str, type: str, lines: str):
+        self.LITERAL[name] = type, lines
+
+
     def set_comment(self, string):
         """
         Sets a comment displayed before the component in written files
@@ -1077,6 +1095,10 @@ class Component:
 
         if not self.JUMP == "":
             fo.write(f"JUMP {self.JUMP}\n")
+
+        if len(self.LITERAL):
+            for name, (type, lines) in self.LITERAL.items():
+                fo.write(f"LITERAL {type} {name} {{%\n{lines}\n%}}\n")
 
         if len(self.c_code_after) > 0:
             fo.write(f"\n{self.c_code_after} // From component named {self.name}\n")
